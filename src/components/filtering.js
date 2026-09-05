@@ -1,13 +1,9 @@
-import {createComparison, defaultRules} from "../lib/compare.js";
+import { createComparison } from "../lib/compare.js";
 
 export function initFiltering(elements, indexes) {
     // @todo: #4.1 — заполнить выпадающие списки опциями
-    // Проходим по всем ключам в indexes (например: 'searchBySeller')
     Object.keys(indexes).forEach(elementName => {
-        // Получаем массив значений для этого элемента
         const values = Object.values(indexes[elementName]);
-        
-        // Для каждого значения создаем option и добавляем в select
         values.forEach(name => {
             const option = document.createElement('option');
             option.value = name;
@@ -17,30 +13,60 @@ export function initFiltering(elements, indexes) {
     });
 
     // @todo: #4.3 — настроить компаратор
-    // Создаем функцию сравнения на основе стандартных правил
-    const compare = createComparison(defaultRules);
+    // Явно перечисляем правила, исключая 'exactEquality'
+    const compare = createComparison(
+        [
+            'skipNonExistentSourceFields',
+            'skipEmptyTargetValues',
+            'failOnEmptySource',
+            'arrayAsRange',       // для массива [from, to] — не используется, но пусть будет
+            'stringIncludes'      // для date, customer — поиск по вхождению
+        ],
+        [
+            // totalFrom — минимальная сумма
+            (key, sourceValue, targetValue) => {
+                if (key !== 'totalFrom') return { continue: true };
+                if (!targetValue || targetValue === '') return { skip: true };
+                const cleanTarget = String(targetValue).replace(/\s/g, '');
+                const cleanSource = String(sourceValue).replace(/\s/g, '');
+                const min = parseFloat(cleanTarget);
+                const value = parseFloat(cleanSource);
+                if (isNaN(min) || isNaN(value)) return { result: true };
+                return { result: value >= min };
+            },
+            // totalTo — максимальная сумма
+            (key, sourceValue, targetValue) => {
+                if (key !== 'totalTo') return { continue: true };
+                if (!targetValue || targetValue === '') return { skip: true };
+                const cleanTarget = String(targetValue).replace(/\s/g, '');
+                const cleanSource = String(sourceValue).replace(/\s/g, '');
+                const max = parseFloat(cleanTarget);
+                const value = parseFloat(cleanSource);
+                if (isNaN(max) || isNaN(value)) return { result: true };
+                return { result: value <= max };
+            },
+            // searchBySeller — точное совпадение
+            (key, sourceValue, targetValue) => {
+                if (key !== 'searchBySeller') return { continue: true };
+                if (!targetValue || targetValue === '') return { skip: true };
+                return { result: String(sourceValue) === String(targetValue) };
+            }
+        ]
+    );
 
     return (data, state, action) => {
         // @todo: #4.2 — обработать очистку поля
-        // Проверяем, была ли нажата кнопка очистки (с именем 'clear')
         if (action && action.name === 'clear') {
-            // Получаем имя поля из data-field
             const field = action.dataset.field;
-            // Находим родительский контейнер с классом js-filter-group
             const parent = action.closest('.js-filter-group');
-            // Находим input или select внутри родителя
             const input = parent?.querySelector('input, select');
-            
             if (input && field) {
-                // Очищаем значение поля
                 input.value = '';
-                // Обновляем состояние
                 state[field] = '';
             }
         }
 
         // @todo: #4.5 — отфильтровать данные используя компаратор
-        // Фильтруем данные: оставляем только те строки, где compare вернул true
         return data.filter(row => compare(row, state));
-    }
+    };
 }
