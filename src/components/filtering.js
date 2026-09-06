@@ -1,5 +1,3 @@
-import { createComparison } from "../lib/compare.js";
-
 export function initFiltering(elements, indexes) {
     // @todo: #4.1 — заполнить выпадающие списки опциями
     Object.keys(indexes).forEach(elementName => {
@@ -11,48 +9,6 @@ export function initFiltering(elements, indexes) {
             elements[elementName].append(option);
         });
     });
-
-    // @todo: #4.3 — настроить компаратор
-    // Явно перечисляем правила, исключая 'exactEquality'
-    const compare = createComparison(
-        [
-            'skipNonExistentSourceFields',
-            'skipEmptyTargetValues',
-            'failOnEmptySource',
-            'arrayAsRange',       // для массива [from, to] — не используется, но пусть будет
-            'stringIncludes'      // для date, customer — поиск по вхождению
-        ],
-        [
-            // totalFrom — минимальная сумма
-            (key, sourceValue, targetValue) => {
-                if (key !== 'totalFrom') return { continue: true };
-                if (!targetValue || targetValue === '') return { skip: true };
-                const cleanTarget = String(targetValue).replace(/\s/g, '');
-                const cleanSource = String(sourceValue).replace(/\s/g, '');
-                const min = parseFloat(cleanTarget);
-                const value = parseFloat(cleanSource);
-                if (isNaN(min) || isNaN(value)) return { result: true };
-                return { result: value >= min };
-            },
-            // totalTo — максимальная сумма
-            (key, sourceValue, targetValue) => {
-                if (key !== 'totalTo') return { continue: true };
-                if (!targetValue || targetValue === '') return { skip: true };
-                const cleanTarget = String(targetValue).replace(/\s/g, '');
-                const cleanSource = String(sourceValue).replace(/\s/g, '');
-                const max = parseFloat(cleanTarget);
-                const value = parseFloat(cleanSource);
-                if (isNaN(max) || isNaN(value)) return { result: true };
-                return { result: value <= max };
-            },
-            // searchBySeller — точное совпадение
-            (key, sourceValue, targetValue) => {
-                if (key !== 'searchBySeller') return { continue: true };
-                if (!targetValue || targetValue === '') return { skip: true };
-                return { result: String(sourceValue) === String(targetValue) };
-            }
-        ]
-    );
 
     return (data, state, action) => {
         // @todo: #4.2 — обработать очистку поля
@@ -66,7 +22,55 @@ export function initFiltering(elements, indexes) {
             }
         }
 
-        // @todo: #4.5 — отфильтровать данные используя компаратор
-        return data.filter(row => compare(row, state));
+        // @todo: #4.5 — отфильтровать данные
+        return data.filter(row => {
+            // Проверяем каждое поле фильтра
+            const totalFrom = state.totalFrom;
+            const totalTo = state.totalTo;
+            const searchBySeller = state.searchBySeller;
+            const dateFilter = state.date;
+            const customerFilter = state.customer;
+
+            // --- Фильтр по минимальной сумме (totalFrom) ---
+            if (totalFrom && totalFrom !== '') {
+                const min = parseFloat(String(totalFrom).replace(/\s/g, ''));
+                const value = parseFloat(String(row.total).replace(/\s/g, ''));
+                if (!isNaN(min) && !isNaN(value) && value < min) {
+                    return false;
+                }
+            }
+
+            // --- Фильтр по максимальной сумме (totalTo) ---
+            if (totalTo && totalTo !== '') {
+                const max = parseFloat(String(totalTo).replace(/\s/g, ''));
+                const value = parseFloat(String(row.total).replace(/\s/g, ''));
+                if (!isNaN(max) && !isNaN(value) && value > max) {
+                    return false;
+                }
+            }
+
+            // --- Фильтр по продавцу (searchBySeller) — точное совпадение ---
+            if (searchBySeller && searchBySeller !== '') {
+                if (String(row.seller) !== String(searchBySeller)) {
+                    return false;
+                }
+            }
+
+            // --- Фильтр по дате — поиск по вхождению ---
+            if (dateFilter && dateFilter !== '') {
+                if (!String(row.date).toLowerCase().includes(String(dateFilter).toLowerCase())) {
+                    return false;
+                }
+            }
+
+            // --- Фильтр по покупателю — поиск по вхождению ---
+            if (customerFilter && customerFilter !== '') {
+                if (!String(row.customer).toLowerCase().includes(String(customerFilter).toLowerCase())) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
     };
 }
