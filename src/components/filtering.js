@@ -27,7 +27,7 @@ export function initFiltering(elements, indexes) {
             // Проверяем каждое поле фильтра
             const totalFrom = state.totalFrom;
             const totalTo = state.totalTo;
-            const searchBySeller = state.searchBySeller;
+            const sellerFilter = state.seller || state.searchBySeller; // <-- ИСПРАВЛЕНО
             const dateFilter = state.date;
             const customerFilter = state.customer;
 
@@ -49,9 +49,9 @@ export function initFiltering(elements, indexes) {
                 }
             }
 
-            // --- Фильтр по продавцу (searchBySeller) — точное совпадение ---
-            if (searchBySeller && searchBySeller !== '') {
-                if (String(row.seller) !== String(searchBySeller)) {
+            // --- Фильтр по продавцу (seller) — точное совпадение ---
+            if (sellerFilter && sellerFilter !== '') {
+                if (String(row.seller) !== String(sellerFilter)) {
                     return false;
                 }
             }
