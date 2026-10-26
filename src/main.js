@@ -1,7 +1,6 @@
 import './fonts/ys-display/fonts.css'
 import './style.css'
 
-
 import { data as sourceData } from "./data/dataset_1.js";
 import { initData } from "./data.js";
 import { processFormData, makeIndex } from "./lib/utils.js";
@@ -14,7 +13,6 @@ import { initSearching } from "./components/searching.js";
 
 const api = initData();
 
-
 const localSellers = makeIndex(sourceData.sellers, 'id', v => `${v.first_name} ${v.last_name}`);
 const localCustomers = makeIndex(sourceData.customers, 'id', v => `${v.first_name} ${v.last_name}`);
 const localData = sourceData.purchase_records.map(item => ({
@@ -24,7 +22,6 @@ const localData = sourceData.purchase_records.map(item => ({
     customer: localCustomers[item.customer_id],
     total: item.total_amount
 }));
-
 
 function collectState() {
     const state = processFormData(new FormData(sampleTable.container));
@@ -80,8 +77,7 @@ const appRoot = document.querySelector('#app');
 appRoot.appendChild(sampleTable.container);
 
 
-
-const initialState = { page: 1, rowsPerPage: 10 };
+const initialState = { page: 1, limit: 10 }; 
 const initialItems = localData.slice(0, 10);
 updatePagination(localData.length, initialState);
 sampleTable.render(initialItems);
